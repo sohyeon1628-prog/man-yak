@@ -3,7 +3,9 @@ import "./App.css";
 import { loadQuestions } from "./questionData";
 
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || "http://localhost:5000";
+  process.env.REACT_APP_API_URL !== undefined
+    ? process.env.REACT_APP_API_URL
+    : (process.env.NODE_ENV === "production" ? "" : "http://localhost:5000");
 
 /* =========================================================
    SVG CRAYON DEFINITIONS
@@ -2401,6 +2403,28 @@ function App() {
     setTimeout(() => setToastMessage(""), 2800);
   };
 
+  // 특정 매치 투표 취소 및 다시 투표하기 핸들러
+  const handleCancelTournamentVote = (matchKey) => {
+    const nextVotes = { ...tournamentVotes };
+    delete nextVotes[matchKey];
+    setTournamentVotes(nextVotes);
+    try {
+      localStorage.setItem("manyak_tournament_votes", JSON.stringify(nextVotes));
+    } catch (e) {}
+    setToastMessage("투표가 취소되었습니다. 다시 마음에 드는 상상에 투표해 보세요!");
+    setTimeout(() => setToastMessage(""), 2200);
+  };
+
+  // 전체 매치 투표 초기화
+  const handleResetAllTournamentVotes = () => {
+    setTournamentVotes({});
+    try {
+      localStorage.removeItem("manyak_tournament_votes");
+    } catch (e) {}
+    setToastMessage("모든 매치의 투표 내역이 초기화되었습니다. 다시 투표하실 수 있습니다! ✦");
+    setTimeout(() => setToastMessage(""), 2400);
+  };
+
   // 상상 카드 토너먼트(월드컵) 출품 핸들러
   const handleTournamentSubmit = async (cardData) => {
     try {
@@ -4411,33 +4435,29 @@ function App() {
           WEEKLY IMAGINATION TOURNAMENT (주간 만약에 상상 월드컵)
       =================================================== */}
       {page === "card-worldcup" && (() => {
-        // 8강 출품작 선착순 최대 8개 + 부족분은 기본 후보로 보충
+        // 실제 출품작만 사용 (더미데이터 제거)
         const activeCandidates = [...tournamentCandidates];
-        for (const defaultCand of DEFAULT_TOURNAMENT_CANDIDATES) {
-          if (activeCandidates.length >= 8) break;
-          if (!activeCandidates.some((c) => c.id === defaultCand.id || c.question === defaultCand.question)) {
-            activeCandidates.push(defaultCand);
-          }
+
+        // 8강 매치 구성: 출품작 2개씩 짝지어 매칭 (최대 4개 매치)
+        const matches8 = [];
+        for (let i = 0; i < activeCandidates.length - 1; i += 2) {
+          matches8.push({
+            key: `m8-${Math.floor(i / 2) + 1}`,
+            cardA: activeCandidates[i],
+            cardB: activeCandidates[i + 1],
+          });
         }
-        while (activeCandidates.length < 8) {
-          activeCandidates.push(DEFAULT_TOURNAMENT_CANDIDATES[activeCandidates.length % DEFAULT_TOURNAMENT_CANDIDATES.length]);
-        }
 
-        // 8강 4개 매치 구성 (선착순 매칭)
-        const matches8 = [
-          { key: "m8-1", cardA: activeCandidates[0], cardB: activeCandidates[1] },
-          { key: "m8-2", cardA: activeCandidates[2], cardB: activeCandidates[3] },
-          { key: "m8-3", cardA: activeCandidates[4], cardB: activeCandidates[5] },
-          { key: "m8-4", cardA: activeCandidates[6], cardB: activeCandidates[7] },
-        ];
+        const safeMatchIdx = matches8.length > 0 ? Math.min(activeMatchIdx, matches8.length - 1) : 0;
+        const currentMatch = matches8[safeMatchIdx] || null;
+        const userChoice = currentMatch ? tournamentVotes[currentMatch.key] : null;
 
-        const currentMatch = matches8[activeMatchIdx] || matches8[0];
-        const userChoice = tournamentVotes[currentMatch.key];
-
-        // 득표율 계산 (시뮬레이션 가중치)
-        const totalVotes = (currentMatch.cardA.votes || 100) + (currentMatch.cardB.votes || 100) + (userChoice ? 1 : 0);
-        const percentA = Math.round(((currentMatch.cardA.votes + (userChoice === currentMatch.cardA.id ? 1 : 0)) / totalVotes) * 100);
-        const percentB = 100 - percentA;
+        // 득표율 계산 (실제 표 수 기준)
+        const votesA = currentMatch ? ((currentMatch.cardA.votes || 0) + (userChoice === currentMatch.cardA.id ? 1 : 0)) : 0;
+        const votesB = currentMatch ? ((currentMatch.cardB.votes || 0) + (userChoice === currentMatch.cardB.id ? 1 : 0)) : 0;
+        const totalVotes = votesA + votesB;
+        const percentA = totalVotes > 0 ? Math.round((votesA / totalVotes) * 100) : 50;
+        const percentB = totalVotes > 0 ? 100 - percentA : 50;
 
         return (
           <main className="worldcup-page">
@@ -4500,146 +4520,210 @@ function App() {
                     <div className="timeline-header-row">
                       <div className="worldcup-title-group">
                         <h2 className="worldcup-main-title">주간 만약에 상상 월드컵</h2>
-                        <span className="live-indicator-pill">8강 본선 LIVE</span>
                       </div>
                       <div className="worldcup-countdown-box">
+                        <span className="live-indicator-pill">8강 본선 LIVE</span>
                         <span className="countdown-text">8강 마감까지 <strong>07시간 42분</strong></span>
                       </div>
                     </div>
 
-                    <div className="worldcup-match-arena">
-                      {/* 매치 선택 인디케이터 (Match 1 ~ Match 4) */}
-                      <div className="match-selector-pills">
-                        {matches8.map((m, idx) => {
-                          const isVoted = !!tournamentVotes[m.key];
-                          return (
+                    {matches8.length === 0 ? (
+                      /* 출품작이 2개 미만일 때의 빈 상태 (더미데이터 제거 완료) */
+                      <div className="worldcup-empty-box">
+                        <div className="empty-state-icon">📮</div>
+                        <h3 className="empty-state-title">이번 주 접수된 상상 월드컵 후보가 아직 없습니다</h3>
+                        <div className="empty-state-actions">
+                          <button
+                            type="button"
+                            className="empty-cta-btn primary"
+                            onClick={() => setCardSubTab("postbox")}
+                          >
+                            📮 작은 상상 우체통에서 출품하기
+                          </button>
+                          <button
+                            type="button"
+                            className="empty-cta-btn secondary"
+                            onClick={() => setPage("my-diary")}
+                          >
+                            📖 나의 일기에서 카드 출품하기
+                          </button>
+                          {Object.keys(tournamentVotes).length > 0 && (
                             <button
-                              key={m.key}
                               type="button"
-                              className={`match-pill-btn ${activeMatchIdx === idx ? "active" : ""} ${isVoted ? "voted" : ""}`}
-                              onClick={() => setActiveMatchIdx(idx)}
+                              className="empty-cta-btn reset"
+                              onClick={handleResetAllTournamentVotes}
+                              title="이전 투표 내역을 초기화합니다"
                             >
-                              <span>{`매치 ${idx + 1}`}</span>
-                              {isVoted && <span className="voted-check">✓</span>}
+                              🔄 이전 투표 내역 비우기
                             </button>
-                          );
-                        })}
+                          )}
+                        </div>
                       </div>
-
-                      <p className="arena-instruction">
-                        더 마음에 와닿거나 엉뚱하고 기발한 상상에 당신의 표를 던져주세요!
-                      </p>
-
-                      {/* 1:1 대결 카드 배틀 박스 */}
-                      <div className="match-battle-box">
-                        
-                        {/* 카드 A */}
-                        <div className={`battle-card ${userChoice === currentMatch.cardA.id ? "selected-winner" : ""}`}>
-                          <div className="battle-card-header">
-                            <span className="card-side-tag">상상 A</span>
-                            <span className="card-author-pill">By. {currentMatch.cardA.author}</span>
+                    ) : (
+                      <div className="worldcup-match-arena">
+                        {/* 매치 선택 인디케이터 (Match 1 ~ Match N) */}
+                        <div className="match-selector-header-row">
+                          <div className="match-selector-pills">
+                            {matches8.map((m, idx) => {
+                              const isVoted = !!tournamentVotes[m.key];
+                              return (
+                                <button
+                                  key={m.key}
+                                  type="button"
+                                  className={`match-pill-btn ${safeMatchIdx === idx ? "active" : ""} ${isVoted ? "voted" : ""}`}
+                                  onClick={() => setActiveMatchIdx(idx)}
+                                >
+                                  <span>{`매치 ${idx + 1}`}</span>
+                                  {isVoted && <span className="voted-check">✓</span>}
+                                </button>
+                              );
+                            })}
                           </div>
-                          <div className="battle-card-img-wrap">
-                            <img src={currentMatch.cardA.imageUrl} alt="상상 A" className="battle-card-img" />
-                          </div>
-                          <div className="battle-card-content">
-                            <h4 className="battle-card-q">{currentMatch.cardA.question}</h4>
-                            <p className="battle-card-a">"{currentMatch.cardA.answer}"</p>
-                          </div>
+                          {Object.keys(tournamentVotes).length > 0 && (
+                            <button
+                              type="button"
+                              className="vote-reset-all-btn"
+                              onClick={handleResetAllTournamentVotes}
+                              title="모든 투표를 리셋하고 다시 투표하기"
+                            >
+                              투표 전체 초기화
+                            </button>
+                          )}
+                        </div>
 
-                          {/* 투표 버튼 또는 투표 결과 */}
-                          <div className="battle-vote-action">
-                            {userChoice ? (
-                              <div className="vote-result-box">
-                                <div className="result-bar-wrap">
-                                  <div className="result-bar-fill" style={{ width: `${percentA}%` }} />
+                        <p className="arena-instruction">
+                          더 마음에 와닿거나 엉뚱하고 기발한 상상에 당신의 표를 던져주세요!
+                        </p>
+
+                        {/* 1:1 대결 카드 배틀 박스 */}
+                        <div className="match-battle-box">
+                          
+                          {/* 카드 A */}
+                          <div className={`battle-card ${userChoice === currentMatch.cardA.id ? "selected-winner" : ""}`}>
+                            <div className="battle-card-header">
+                              <span className="card-side-tag">상상 A</span>
+                              <span className="card-author-pill">By. {currentMatch.cardA.author}</span>
+                            </div>
+                            <div className="battle-card-img-wrap">
+                              <img src={currentMatch.cardA.imageUrl} alt="상상 A" className="battle-card-img" />
+                            </div>
+                            <div className="battle-card-content">
+                              <h4 className="battle-card-q">{currentMatch.cardA.question}</h4>
+                              <p className="battle-card-a">"{currentMatch.cardA.answer}"</p>
+                            </div>
+
+                            {/* 투표 버튼 또는 투표 결과 */}
+                            <div className="battle-vote-action">
+                              {userChoice ? (
+                                <div className="vote-result-box">
+                                  <div className="result-bar-wrap">
+                                    <div className="result-bar-fill" style={{ width: `${percentA}%` }} />
+                                  </div>
+                                  <span className="result-percent-text">{percentA}% ({votesA}표)</span>
+                                  {userChoice === currentMatch.cardA.id && (
+                                    <span className="my-vote-badge">내 투표작</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="vote-change-text-btn"
+                                    onClick={() => handleCancelTournamentVote(currentMatch.key)}
+                                    title="투표를 취소하고 다시 투표하기"
+                                  >
+                                    ↩ 투표 취소 / 다시하기
+                                  </button>
                                 </div>
-                                <span className="result-percent-text">{percentA}% ({currentMatch.cardA.votes + (userChoice === currentMatch.cardA.id ? 1 : 0)}표)</span>
-                                {userChoice === currentMatch.cardA.id && (
-                                  <span className="my-vote-badge">내 투표작</span>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="vote-submit-btn"
-                                onClick={() => handleVoteTournamentCard(currentMatch.key, currentMatch.cardA.id)}
-                              >
-                                이 상상에 투표하기
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 중앙 VS 엠블럼 */}
-                        <div className="battle-vs-badge">
-                          <span className="vs-text">VS</span>
-                          <span className="vs-sub">8강 {activeMatchIdx + 1}/4</span>
-                        </div>
-
-                        {/* 카드 B */}
-                        <div className={`battle-card ${userChoice === currentMatch.cardB.id ? "selected-winner" : ""}`}>
-                          <div className="battle-card-header">
-                            <span className="card-side-tag orange">상상 B</span>
-                            <span className="card-author-pill">By. {currentMatch.cardB.author}</span>
-                          </div>
-                          <div className="battle-card-img-wrap">
-                            <img src={currentMatch.cardB.imageUrl} alt="상상 B" className="battle-card-img" />
-                          </div>
-                          <div className="battle-card-content">
-                            <h4 className="battle-card-q">{currentMatch.cardB.question}</h4>
-                            <p className="battle-card-a">"{currentMatch.cardB.answer}"</p>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="vote-submit-btn"
+                                  onClick={() => handleVoteTournamentCard(currentMatch.key, currentMatch.cardA.id)}
+                                >
+                                  이 상상에 투표하기
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          {/* 투표 버튼 또는 투표 결과 */}
-                          <div className="battle-vote-action">
-                            {userChoice ? (
-                              <div className="vote-result-box">
-                                <div className="result-bar-wrap">
-                                  <div className="result-bar-fill orange" style={{ width: `${percentB}%` }} />
+                          {/* 중앙 VS 엠블럼 */}
+                          <div className="battle-vs-badge">
+                            <span className="vs-text">VS</span>
+                            <span className="vs-sub">8강 {safeMatchIdx + 1}/{matches8.length}</span>
+                          </div>
+
+                          {/* 카드 B */}
+                          <div className={`battle-card ${userChoice === currentMatch.cardB.id ? "selected-winner" : ""}`}>
+                            <div className="battle-card-header">
+                              <span className="card-side-tag orange">상상 B</span>
+                              <span className="card-author-pill">By. {currentMatch.cardB.author}</span>
+                            </div>
+                            <div className="battle-card-img-wrap">
+                              <img src={currentMatch.cardB.imageUrl} alt="상상 B" className="battle-card-img" />
+                            </div>
+                            <div className="battle-card-content">
+                              <h4 className="battle-card-q">{currentMatch.cardB.question}</h4>
+                              <p className="battle-card-a">"{currentMatch.cardB.answer}"</p>
+                            </div>
+
+                            {/* 투표 버튼 또는 투표 결과 */}
+                            <div className="battle-vote-action">
+                              {userChoice ? (
+                                <div className="vote-result-box">
+                                  <div className="result-bar-wrap">
+                                    <div className="result-bar-fill orange" style={{ width: `${percentB}%` }} />
+                                  </div>
+                                  <span className="result-percent-text">{percentB}% ({votesB}표)</span>
+                                  {userChoice === currentMatch.cardB.id && (
+                                    <span className="my-vote-badge">내 투표작</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="vote-change-text-btn"
+                                    onClick={() => handleCancelTournamentVote(currentMatch.key)}
+                                    title="투표를 취소하고 다시 투표하기"
+                                  >
+                                    ↩ 투표 취소 / 다시하기
+                                  </button>
                                 </div>
-                                <span className="result-percent-text">{percentB}% ({currentMatch.cardB.votes + (userChoice === currentMatch.cardB.id ? 1 : 0)}표)</span>
-                                {userChoice === currentMatch.cardB.id && (
-                                  <span className="my-vote-badge">내 투표작</span>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="vote-submit-btn orange"
-                                onClick={() => handleVoteTournamentCard(currentMatch.key, currentMatch.cardB.id)}
-                              >
-                                이 상상에 투표하기
-                              </button>
-                            )}
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="vote-submit-btn orange"
+                                  onClick={() => handleVoteTournamentCard(currentMatch.key, currentMatch.cardB.id)}
+                                >
+                                  이 상상에 투표하기
+                                </button>
+                              )}
+                            </div>
                           </div>
+
                         </div>
 
+                        {/* 하단 매치 네비게이션 */}
+                        {matches8.length > 1 && (
+                          <div className="match-footer-nav">
+                            <button
+                              type="button"
+                              className="match-step-btn"
+                              disabled={safeMatchIdx === 0}
+                              onClick={() => setActiveMatchIdx((prev) => Math.max(0, prev - 1))}
+                            >
+                              ← 이전 매치
+                            </button>
+                            <span className="match-step-info">
+                              {safeMatchIdx + 1} / {matches8.length} 매치
+                            </span>
+                            <button
+                              type="button"
+                              className="match-step-btn"
+                              disabled={safeMatchIdx === matches8.length - 1}
+                              onClick={() => setActiveMatchIdx((prev) => Math.min(matches8.length - 1, prev + 1))}
+                            >
+                              다음 매치 →
+                            </button>
+                          </div>
+                        )}
                       </div>
-
-                      {/* 하단 매치 네비게이션 */}
-                      <div className="match-footer-nav">
-                        <button
-                          type="button"
-                          className="match-step-btn"
-                          disabled={activeMatchIdx === 0}
-                          onClick={() => setActiveMatchIdx((prev) => Math.max(0, prev - 1))}
-                        >
-                          ← 이전 매치
-                        </button>
-                        <span className="match-step-info">
-                          {activeMatchIdx + 1} / {matches8.length} 매치
-                        </span>
-                        <button
-                          type="button"
-                          className="match-step-btn"
-                          disabled={activeMatchIdx === matches8.length - 1}
-                          onClick={() => setActiveMatchIdx((prev) => Math.min(matches8.length - 1, prev + 1))}
-                        >
-                          다음 매치 →
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </section>
 
                   {/* 2. 하단 영역: 주간 리그 타임라인 및 지난 라운드 / 예정 라운드 / 명예의 전당 */}

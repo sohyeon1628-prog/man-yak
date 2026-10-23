@@ -10839,6 +10839,142 @@ body {
   align-self: flex-start;
 }
 
+/* 투표 취소 및 다시 투표하기 텍스트 버튼 */
+.vote-change-text-btn {
+  background: transparent;
+  border: none;
+  color: #8c7e6e;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  margin-top: 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: all 0.2s ease;
+  align-self: flex-end;
+}
+
+.vote-change-text-btn:hover {
+  color: #e65100;
+  background: rgba(230, 81, 0, 0.06);
+}
+
+/* 매치 선택 행 및 전체 초기화 버튼 */
+.match-selector-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.vote-reset-all-btn {
+  background: #f5efe6;
+  border: 1px solid #e2d7c7;
+  color: #7d6e5d;
+  font-family: "Pretendard", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vote-reset-all-btn:hover {
+  background: #ede3d3;
+  color: #3b3026;
+}
+
+/* 출품작이 없을 때의 빈 상태 안내 박스 */
+.worldcup-empty-box {
+  background: #fffdfa;
+  border: 2px dashed #e2d7c7;
+  border-radius: 20px;
+  padding: 48px 24px;
+  text-align: center;
+  margin: 16px 0 32px;
+  animation: fadeIn 0.3s ease;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state-title {
+  font-family: "DaeHan", sans-serif;
+  font-size: 22px;
+  color: #3b3026;
+  margin: 0 0 10px;
+  letter-spacing: -0.3px;
+}
+
+.empty-state-desc {
+  font-family: "Pretendard", sans-serif;
+  font-size: 14.5px;
+  color: #7d6e5d;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.empty-state-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.empty-cta-btn {
+  font-family: "Pretendard", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-cta-btn.primary {
+  background: #ff7700;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(255, 119, 0, 0.25);
+}
+
+.empty-cta-btn.primary:hover {
+  background: #e66000;
+  transform: translateY(-2px);
+}
+
+.empty-cta-btn.secondary {
+  background: #ffffff;
+  color: #3b3026;
+  border: 1.5px solid #d4c5b3;
+}
+
+.empty-cta-btn.secondary:hover {
+  background: #fbf8f3;
+  border-color: #bfaea0;
+}
+
+.empty-cta-btn.reset {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+.empty-cta-btn.reset:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+
 /* 중앙 VS 엠블럼 */
 .battle-vs-badge {
   display: flex;

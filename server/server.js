@@ -809,37 +809,29 @@ app.post("/api/tournament/submit", (req, res) => {
 });
 
 /* =========================================================
-   7. 서버 실행
+   7. React 정적 빌드 서빙 (Render 프로덕션 배포용)
 ========================================================= */
 
-const PORT = 5000;
+const buildPath = path.join(__dirname, "..", "build");
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
 
-app.listen(
-  PORT,
-  () => {
+  // API 경로 이외의 모든 요청은 React index.html로 반환 (SPA 새로고침 지원)
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(buildPath, "index.html"));
+  });
+}
 
-    console.log(
-      "================================"
-    );
+/* =========================================================
+   8. 서버 실행
+========================================================= */
 
-    console.log(
-      `🚀 서버 실행: http://localhost:${PORT}`
-    );
+const PORT = process.env.PORT || 5000;
 
-    console.log(
-      "🗄️ Database: Supabase"
-    );
-
-    console.log(
-      "🖼️ 이미지 API:"
-    );
-
-    console.log(
-      "http://localhost:5000/api/generate-image"
-    );
-
-    console.log(
-      "================================"
-    );
-  }
-);
+app.listen(PORT, () => {
+  console.log("================================");
+  console.log(`🚀 서버 실행: http://localhost:${PORT}`);
+  console.log("🗄️ Database: Supabase");
+  console.log("🖼️ 이미지 API: http://localhost:5000/api/generate-image");
+  console.log("================================");
+});
