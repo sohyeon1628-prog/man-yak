@@ -4532,7 +4532,6 @@ function App() {
                     {matches8.length === 0 ? (
                       /* 출품작이 2개 미만일 때의 빈 상태 (더미데이터 제거 완료) */
                       <div className="worldcup-empty-box">
-                        <div className="empty-state-icon">📮</div>
                         <h3 className="empty-state-title">이번 주 접수된 상상 월드컵 후보가 아직 없습니다</h3>
                         <div className="empty-state-actions">
                           <button
@@ -4540,14 +4539,14 @@ function App() {
                             className="empty-cta-btn primary"
                             onClick={() => setCardSubTab("postbox")}
                           >
-                            📮 작은 상상 우체통에서 출품하기
+                            작은 상상 우체통에서 출품하기
                           </button>
                           <button
                             type="button"
                             className="empty-cta-btn secondary"
                             onClick={() => setPage("my-diary")}
                           >
-                            📖 나의 일기에서 카드 출품하기
+                            나의 일기에서 카드 출품하기
                           </button>
                           {Object.keys(tournamentVotes).length > 0 && (
                             <button
@@ -4556,7 +4555,7 @@ function App() {
                               onClick={handleResetAllTournamentVotes}
                               title="이전 투표 내역을 초기화합니다"
                             >
-                              🔄 이전 투표 내역 비우기
+                              이전 투표 내역 비우기
                             </button>
                           )}
                         </div>
