@@ -809,6 +809,18 @@ app.post("/api/tournament/submit", (req, res) => {
 });
 
 /* =========================================================
+   6-3. 헬스체크 & Keep-Alive 엔드포인트 (절전모드 방지용)
+========================================================= */
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: Date.now(),
+    message: "서버가 활성 상태입니다.",
+  });
+});
+
+/* =========================================================
    7. React 정적 빌드 서빙 (Render 프로덕션 배포용)
 ========================================================= */
 
@@ -823,7 +835,7 @@ if (fs.existsSync(buildPath)) {
 }
 
 /* =========================================================
-   8. 서버 실행
+   8. 서버 실행 & 절전 방지 자체 핑
 ========================================================= */
 
 const PORT = process.env.PORT || 5000;
@@ -834,4 +846,22 @@ app.listen(PORT, () => {
   console.log("🗄️ Database: Supabase");
   console.log("🖼️ 이미지 API: http://localhost:5000/api/generate-image");
   console.log("================================");
+
+  // Render 무료 플랜 절전모드(Spin down) 방지: 14분마다 자체 핑
+  const PING_INTERVAL = 14 * 60 * 1000; // 14분 (Render는 15분 미요청 시 절전모드 진입)
+  const appUrl = process.env.RENDER_EXTERNAL_URL;
+
+  if (appUrl) {
+    console.log(`⏱️ Keep-Alive 활성화: 14분마다 ${appUrl}/api/health 핑 전송`);
+    setInterval(async () => {
+      try {
+        const pingRes = await fetch(`${appUrl}/api/health`);
+        if (pingRes.ok) {
+          console.log(`[Keep-Alive] 핑 성공 (${new Date().toLocaleTimeString("ko-KR")})`);
+        }
+      } catch (err) {
+        console.warn("[Keep-Alive] 핑 실패:", err.message);
+      }
+    }, PING_INTERVAL);
+  }
 });

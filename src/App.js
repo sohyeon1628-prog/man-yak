@@ -2380,6 +2380,8 @@ function App() {
 
   useEffect(() => {
     fetchTournamentCandidates();
+    // Render 무료 플랜 절전모드 방지: 첫 접속 시 서버 웜업 핑
+    fetch(`${API_BASE_URL}/api/health`).catch(() => {});
   }, []);
 
   // 토너먼트 탭 선택 (8강 기본)
