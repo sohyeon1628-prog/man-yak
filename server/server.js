@@ -816,8 +816,8 @@ const buildPath = path.join(__dirname, "..", "build");
 if (fs.existsSync(buildPath)) {
   app.use(express.static(buildPath));
 
-  // API 경로 이외의 모든 요청은 React index.html로 반환 (SPA 새로고침 지원)
-  app.get("*", (req, res) => {
+  // API 경로 이외의 모든 요청은 React index.html로 반환 (Express 5 SPA 호환)
+  app.use((req, res) => {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 }
